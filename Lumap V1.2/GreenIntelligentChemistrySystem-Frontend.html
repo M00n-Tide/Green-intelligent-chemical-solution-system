@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Intelligent Chemistry System</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/vue-i18n@9/dist/vue-i18n.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/locale/en.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/locale/zh-cn.js"></script>
+    <style>
+        .container { padding: 20px; }
+        .el-menu { height: 100vh; border-right: none; }
+        .content { padding: 20px; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <el-container style="height: 100vh;">
+            <!-- 顶部导航栏 -->
+            <el-header style="background-color: #001529; color: white; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;">
+                <h1 style="margin: 0; font-size: 20px;">{{ $t('common.systemTitle') }}</h1>
+                
+                <!-- 语言切换按钮 -->
+                <div style="display: flex; align-items: center;">
+                    <el-dropdown @command="changeLanguage">
+                        <span style="color: white; cursor: pointer; display: flex; align-items: center;">
+                            {{ currentLanguage === 'zh-CN' ? '🇨🇳 中文' : '🇺🇸 English' }}
+                            <el-icon style="margin-left: 5px;"><i class="el-icon-arrow-down"></i></el-icon>
+                        </span>
+                        <template #dropdown>
+                            <el-dropdown-menu>
+                                <el-dropdown-item command="zh-CN">🇨🇳 中文</el-dropdown-item>
+                                <el-dropdown-item command="en-US">🇺🇸 English</el-dropdown-item>
+                            </el-dropdown-menu>
+                        </template>
+                    </el-dropdown>
+                </div>
+            </el-header>
+            
+            <el-container>
+                <!-- 侧边栏菜单 -->
+                <el-aside width="200px" style="background-color: #001529;">
+                    <el-menu :default-active="activeMenu" class="el-menu-vertical-demo" background-color="#001529" text-color="#fff" active-text-color="#ffd04b" @select="handleMenuSelect">
+                        <el-menu-item index="1">
+                            <el-icon><i class="el-icon-menu"></i></el-icon>
+                            <span>{{ $t('menu.chemicalManagement') }}</span>
+                        </el-menu-item>
+                        <el-menu-item index="2">
+                            <el-icon><i class="el-icon-document"></i></el-icon>
+                            <span>{{ $t('menu.safetyDataManagement') }}</span>
+                        </el-menu-item>
+                        <el-menu-item index="3">
+                            <el-icon><i class="el-icon-flask"></i></el-icon>
+                            <span>{{ $t('menu.experimentManagement') }}</span>
+                        </el-menu-item>
+                        <el-menu-item index="4">
+                            <el-icon><i class="el-icon-warning"></i></el-icon>
+                            <span>{{ $t('menu.riskMonitor') }}</span>
+                        </el-menu-item>
+                    </el-menu>
+                </el-aside>
+
+                <!-- 主内容区 -->
+                <el-main class="content">
+                    <component :is="currentComponent"></component>
+                </el-main>
+            </el-container>
+        </el-container>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted, watch, useI18n } = Vue;
+        const { ElMessage, ElDialog, ElTable, ElTableColumn, ElButton } = ElementPlus;
+        const { createI18n } = VueI18n;
+        
+        // 语言资源
+        const messages = {
+            'zh-CN': {
+                common: {
+                    language: '语言',
+                    systemTitle: '绿色智能化学系统',
+                    switchLanguage: '切换语言',
+                    inventory: '库存',
+                    operation: '操作',
+                    view: '查看',
+                    status: '状态',
+                    quantity: '数量',
+                    location: '存储位置'
+                },
+                menu: {
+                    chemicalManagement: '化学品管理',
+                    safetyDataManagement: '安全数据管理',
+                    experimentManagement: '实验管理',
+                    riskMonitor: '风险监控'
+                },
+                chemicalManagement: {
+                    title: '化学品管理',
+                    addChemical: '新增化学品',
+                    chemicalName: '名称',
+                    casNumber: 'CAS号',
+                    hazardLevel: '危险等级',
+                    inventoryInfo: '库存信息',
+                    inventoryId: '库存ID',
+                    loadCatalogError: '加载化学品目录失败',
+                    loadInventoryError: '加载库存数据失败',
+                    addChemicalFeature: '新增化学品功能待实现',
+                    noDanger: '无危险',
+                    lowDanger: '低危',
+                    mediumDanger: '中危',
+                    highDanger: '高危',
+                    recordStatus: {
+                        enabled: '启用',
+                        disabled: '停用',
+                        draft: '草稿'
+                    }
+                },
+                safetyDataManagement: {
+                    title: '安全数据管理',
+                    search: '搜索',
+                    download: '下载',
+                    viewDetails: '查看详情',
+                    safetyDataSheet: '安全数据表',
+                    emergencyContact: '紧急联系人',
+                    handlingPrecautions: '操作注意事项',
+                    storageConditions: '存储条件',
+                    disposalMethod: '处置方法',
+                    firstAidMeasures: '急救措施',
+                    fireFightingMeasures: '消防措施',
+                    accidentalReleaseMeasures: '泄漏应急处理',
+                    toxicologicalInformation: '毒理学信息',
+                    ecologicalInformation: '生态学信息',
+                    transportInformation: '运输信息',
+                    regulatoryInformation: '法规信息',
+                    otherInformation: '其他信息'
+                },
+                experimentManagement: {
+                    title: '实验管理',
+                    createExperiment: '创建实验',
+                    experimentName: '实验名称',
+                    experimentType: '实验类型',
+                    startDate: '开始日期',
+                    endDate: '结束日期',
+                    status: '状态',
+                    participants: '参与人员',
+                    materials: '实验材料',
+                    equipment: '实验设备',
+                    procedures: '实验步骤',
+                    results: '实验结果',
+                    conclusions: '结论',
+                    attachments: '附件',
+                    approve: '批准',
+                    reject: '拒绝',
+                    pending: '待处理',
+                    inProgress: '进行中',
+                    completed: '已完成',
+                    cancelled: '已取消',
+                    notes: '备注',
+                    riskAssessment: '风险评估'
+                },
+                riskMonitor: {
+                    title: '风险监控',
+                    currentRiskLevel: '当前风险等级',
+                    riskAssessment: '风险评估',
+                    incidentReport: '事件报告',
+                    preventiveMeasures: '预防措施',
+                    emergencyProcedures: '应急程序',
+                    safetyGuidelines: '安全指南',
+                    riskHistory: '风险历史',
+                    monitoringDashboard: '监控仪表盘',
+                    alerts: '警报',
+                    notifications: '通知',
+                    critical: '严重',
+                    warning: '警告',
+                    normal: '正常',
+                    lastUpdated: '最后更新',
+                    viewDetails: '查看详情',
+                    generateReport: '生成报告',
+                    exportData: '导出数据',
+                    settings: '设置'
+                }
+            },
+            'en-US': {
+                common: {
+                    language: 'Language',
+                    systemTitle: 'Green Intelligent Chemistry System',
+                    switchLanguage: 'Switch Language',
+                    inventory: 'Inventory',
+                    operation: 'Operation',
+                    view: 'View',
+                    status: 'Status',
+                    quantity: 'Quantity',
+                    location: 'Storage Location'
+                },
+                menu: {
+                    chemicalManagement: 'Chemical Management',
+                    safetyDataManagement: 'Safety Data Management',
+                    experimentManagement: 'Experiment Management',
+                    riskMonitor: 'Risk Monitor'
+                },
+                chemicalManagement: {
+                    title: 'Chemical Management',
+                    addChemical: 'Add Chemical',
+                    chemicalName: 'Name',
+                    casNumber: 'CAS Number',
+                    hazardLevel: 'Hazard Level',
+                    inventoryInfo: 'Inventory Information',
+                    inventoryId: 'Inventory ID',
+                    loadCatalogError: 'Failed to load chemical catalog',
+                    loadInventoryError: 'Failed to load inventory data',
+                    addChemicalFeature: 'Add chemical feature to be implemented',
+                    noDanger: 'No Danger',
+                    lowDanger: 'Low Danger',
+                    mediumDanger: 'Medium Danger',
+                    highDanger: 'High Danger',
+                    recordStatus: {
+                        enabled: 'Enabled',
+                        disabled: 'Disabled',
+                        draft: 'Draft'
+                    }
+                },
+                safetyDataManagement: {
+                    title: 'Safety Data Management',
+                    search: 'Search',
+                    download: 'Download',
+                    viewDetails: 'View Details',
+                    safetyDataSheet: 'Safety Data Sheet',
+                    emergencyContact: 'Emergency Contact',
+                    handlingPrecautions: 'Handling Precautions',
+                    storageConditions: 'Storage Conditions',
+                    disposalMethod: 'Disposal Method',
+                    firstAidMeasures: 'First Aid Measures',
+                    fireFightingMeasures: 'Fire Fighting Measures',
+                    accidentalReleaseMeasures: 'Accidental Release Measures',
+                    toxicologicalInformation: 'Toxicological Information',
+                    ecologicalInformation: 'Ecological Information',
+                    transportInformation: 'Transport Information',
+                    regulatoryInformation: 'Regulatory Information',
+                    otherInformation: 'Other Information'
+                },
+                experimentManagement: {
+                    title: 'Experiment Management',
+                    createExperiment: 'Create Experiment',
+                    experimentName: 'Experiment Name',
+                    experimentType: 'Experiment Type',
+                    startDate: 'Start Date',
+                    endDate: 'End Date',
+                    status: 'Status',
+                    participants: 'Participants',
+                    materials: 'Materials',
+                    equipment: 'Equipment',
+                    procedures: 'Procedures',
+                    results: 'Results',
+                    conclusions: 'Conclusions',
+                    attachments: 'Attachments',
+                    approve: 'Approve',
+                    reject: 'Reject',
+                    pending: 'Pending',
+                    inProgress: 'In Progress',
+                    completed: 'Completed',
+                    cancelled: 'Cancelled',
+                    notes: 'Notes',
+                    riskAssessment: 'Risk Assessment'
+                },
+                riskMonitor: {
+                    title: 'Risk Monitor',
+                    currentRiskLevel: 'Current Risk Level',
+                    riskAssessment: 'Risk Assessment',
+                    incidentReport: 'Incident Report',
+                    preventiveMeasures: 'Preventive Measures',
+                    emergencyProcedures: 'Emergency Procedures',
+                    safetyGuidelines: 'Safety Guidelines',
+                    riskHistory: 'Risk History',
+                    monitoringDashboard: 'Monitoring Dashboard',
+                    alerts: 'Alerts',
+                    notifications: 'Notifications',
+                    critical: 'Critical',
+                    warning: 'Warning',
+                    normal: 'Normal',
+                    lastUpdated: 'Last Updated',
+                    viewDetails: 'View Details',
+                    generateReport: 'Generate Report',
+                    exportData: 'Export Data',
+                    settings: 'Settings'
+                }
+            }
+        };
+        
+        // 创建i18n实例
+        const i18n = createI18n({
+            legacy: false,
+            locale: localStorage.getItem('language') || 'zh-CN', // 默认中文，从本地存储获取语言设置
+            fallbackLocale: 'en-US',
+            messages
+        });
+        
+        // 路由组件定义
+        const ChemicalManagement = {
+            template: `
+                <div>
+                    <h2>{{ $t('chemicalManagement.title') }}</h2>
+                    <el-button type="primary" @click="openAddCatalog">{{ $t('chemicalManagement.addChemical') }}</el-button>
+                    <el-table :data="catalogs" border style="width: 100%; margin-top: 20px;">
+                        <el-table-column prop="id" label="ID" width="80"></el-table-column>
+                        <el-table-column prop="chemicalName" :label="$t('chemicalManagement.chemicalName')"></el-table-column>
+                        <el-table-column prop="casNumber" :label="$t('chemicalManagement.casNumber')"></el-table-column>
+                        <el-table-column prop="hazardLevel" :label="$t('chemicalManagement.hazardLevel')">
+                            <template #default="scope">
+                                <span>{{ translateHazardLevel(scope.row.hazardLevel) }}</span>
+                            </template>
+                        </el-table-column>
+                        <el-table-column :label="$t('common.operation')">
+                            <template #default="scope">
+                                <el-button size="small" @click="viewInventory(scope.row)">{{ $t('common.inventory') }}</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+
+                    <!-- 库存弹窗 -->
+                    <el-dialog v-model="inventoryDialogVisible" :title="$t('chemicalManagement.inventoryInfo')" width="800px">
+                        <el-table :data="inventoryList" border style="width: 100%;">
+                            <el-table-column prop="id" :label="$t('chemicalManagement.inventoryId')"></el-table-column>
+                            <el-table-column prop="location" :label="$t('common.location')"></el-table-column>
+                            <el-table-column prop="quantity" :label="$t('common.quantity')"></el-table-column>
+                            <el-table-column prop="status" :label="$t('common.status')"></el-table-column>
+                        </el-table>
+                    </el-dialog>
+                </div>
+            `,
+            setup() {
+                const { t } = useI18n();
+                const catalogs = ref([]);
+                const inventoryDialogVisible = ref(false);
+                const inventoryList = ref([]);
+
+                // 翻译危险等级
+                const translateHazardLevel = (level) => {
+                    const hazardMap = {
+                        '无危险': t('chemicalManagement.noDanger'),
+                        '低危': t('chemicalManagement.lowDanger'),
+                        '中危': t('chemicalManagement.mediumDanger'),
+                        '高危': t('chemicalManagement.highDanger'),
+                        'No Danger': t('chemicalManagement.noDanger'),
+                        'Low Danger': t('chemicalManagement.lowDanger'),
+                        'Medium Danger': t('chemicalManagement.mediumDanger'),
+                        'High Danger': t('chemicalManagement.highDanger')
+                    };
+                    return hazardMap[level] || level;
+                };
+
+                // 【已修复】加载化学品目录数据
+                const loadCatalogs = async () => {
+                    try {
+                        // 假设后端有获取所有目录的接口
+                        const res = await axios.get('/api/chemicals/catalogs');
+                        catalogs.value = res.data;
+                    } catch (err) {
+                        ElMessage.error(t('chemicalManagement.loadCatalogError'));
+                        console.error(err);
+                    }
+                };
+
+                // 组件挂载时加载数据
+                onMounted(loadCatalogs);
+
+                // 【已修复】实现查看库存方法
+                const viewInventory = async (catalog) => {
+                    try {
+                        const res = await axios.get(`/api/chemicals/inventories?catalogId=${catalog.id}`);
+                        inventoryList.value = res.data;
+                        inventoryDialogVisible.value = true;
+                    } catch (err) {
+                        ElMessage.error(t('chemicalManagement.loadInventoryError'));
+                        console.error(err);
+                    }
+                };
+
+                const openAddCatalog = () => {
+                    // 新增化学品的逻辑
+                    ElMessage.info(t('chemicalManagement.addChemicalFeature'));
+                };
+
+                return {
+                    catalogs,
+                    inventoryDialogVisible,
+                    inventoryList,
+                    loadCatalogs,
+                    viewInventory,
+                    openAddCatalog,
+                    translateHazardLevel
+                };
+            }
+        };
+
+        const SafetyDataManagement = {
+            template: `
+                <div>
+                    <h2>{{ $t('safetyDataManagement.title') }}</h2>
+                    <div style="margin-bottom: 20px;">
+                        <el-input :placeholder="$t('safetyDataManagement.search')" style="width: 300px; margin-right: 10px;">
+                            <template #prefix>
+                                <el-icon><i class="el-icon-search"></i></el-icon>
+                            </template>
+                        </el-input>
+                        <el-button type="primary">{{ $t('safetyDataManagement.search') }}</el-button>
+                    </div>
+                    
+                    <el-table :data="safetyDataList" border style="width: 100%;">
+                        <el-table-column prop="chemicalName" :label="$t('chemicalManagement.chemicalName')" width="180"></el-table-column>
+                        <el-table-column prop="safetyDataSheet" :label="$t('safetyDataManagement.safetyDataSheet')" width="150">
+                            <template #default="scope">
+                                <el-button type="text" @click="viewSafetyData(scope.row)">{{ $t('safetyDataManagement.viewDetails') }}</el-button>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="emergencyContact" :label="$t('safetyDataManagement.emergencyContact')" width="150"></el-table-column>
+                        <el-table-column prop="handlingPrecautions" :label="$t('safetyDataManagement.handlingPrecautions')"></el-table-column>
+                        <el-table-column prop="storageConditions" :label="$t('safetyDataManagement.storageConditions')" width="150"></el-table-column>
+                        <el-table-column prop="disposalMethod" :label="$t('safetyDataManagement.disposalMethod')" width="150"></el-table-column>
+                        <el-table-column :label="$t('common.operation')" width="120">
+                            <template #default="scope">
+                                <el-button type="text" @click="downloadSafetyData(scope.row)">{{ $t('safetyDataManagement.download') }}</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+            `,
+            setup() {
+                const { t } = useI18n();
+                const safetyDataList = ref([
+                    {
+                        id: 1,
+                        chemicalName: '乙醇',
+                        safetyDataSheet: 'SDS-001',
+                        emergencyContact: '张医生 13800138000',
+                        handlingPrecautions: '避免吸入蒸气，戴防护手套',
+                        storageConditions: '阴凉干燥处',
+                        disposalMethod: '化学废液处理'
+                    },
+                    {
+                        id: 2,
+                        chemicalName: '氢氧化钠',
+                        safetyDataSheet: 'SDS-002',
+                        emergencyContact: '李医生 13900139000',
+                        handlingPrecautions: '避免皮肤接触，戴防护眼镜',
+                        storageConditions: '密封干燥处',
+                        disposalMethod: '中和后处理'
+                    }
+                ]);
+                
+                const viewSafetyData = (row) => {
+                    ElMessage.info(`${t('safetyDataManagement.viewDetails')}: ${row.chemicalName}`);
+                };
+                
+                const downloadSafetyData = (row) => {
+                    ElMessage.info(`${t('safetyDataManagement.download')}: ${row.safetyDataSheet}`);
+                };
+                
+                return {
+                    safetyDataList,
+                    viewSafetyData,
+                    downloadSafetyData
+                };
+            }
+        };
+
+        const ExperimentManagement = {
+            template: `
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>{{ $t('experimentManagement.title') }}</h2>
+                        <el-button type="primary">{{ $t('experimentManagement.createExperiment') }}</el-button>
+                    </div>
+                    
+                    <el-table :data="experimentList" border style="width: 100%;">
+                        <el-table-column prop="name" :label="$t('experimentManagement.experimentName')" width="200"></el-table-column>
+                        <el-table-column prop="type" :label="$t('experimentManagement.experimentType')" width="150"></el-table-column>
+                        <el-table-column prop="startDate" :label="$t('experimentManagement.startDate')" width="120"></el-table-column>
+                        <el-table-column prop="endDate" :label="$t('experimentManagement.endDate')" width="120"></el-table-column>
+                        <el-table-column prop="status" :label="$t('experimentManagement.status')" width="120">
+                            <template #default="scope">
+                                <el-tag :type="getStatusType(scope.row.status)">{{ $t(\`experimentManagement.\${scope.row.status}\`) }}</el-tag>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="participants" :label="$t('experimentManagement.participants')" width="150"></el-table-column>
+                        <el-table-column prop="riskAssessment" :label="$t('experimentManagement.riskAssessment')" width="120"></el-table-column>
+                        <el-table-column :label="$t('common.operation')" width="180">
+                            <template #default="scope">
+                                <el-button size="small" @click="viewDetails(scope.row)">{{ $t('common.view') }}</el-button>
+                                <el-button v-if="scope.row.status === 'pending'" size="small" type="success" @click="approveExperiment(scope.row)">{{ $t('experimentManagement.approve') }}</el-button>
+                                <el-button v-if="scope.row.status === 'pending'" size="small" type="danger" @click="rejectExperiment(scope.row)">{{ $t('experimentManagement.reject') }}</el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+            `,
+            setup() {
+                const { t } = useI18n();
+                const experimentList = ref([
+                    {
+                        id: 1,
+                        name: '有机合成实验',
+                        type: '有机化学',
+                        startDate: '2023-11-20',
+                        endDate: '2023-11-25',
+                        status: 'inProgress',
+                        participants: '张三, 李四',
+                        riskAssessment: '中等风险'
+                    },
+                    {
+                        id: 2,
+                        name: '材料分析实验',
+                        type: '分析化学',
+                        startDate: '2023-11-22',
+                        endDate: '2023-11-24',
+                        status: 'pending',
+                        participants: '王五',
+                        riskAssessment: '低风险'
+                    },
+                    {
+                        id: 3,
+                        name: '催化剂测试',
+                        type: '物理化学',
+                        startDate: '2023-11-15',
+                        endDate: '2023-11-18',
+                        status: 'completed',
+                        participants: '赵六, 钱七',
+                        riskAssessment: '高风险'
+                    }
+                ]);
+                
+                const getStatusType = (status) => {
+                    const statusMap = {
+                        'pending': 'info',
+                        'inProgress': 'warning',
+                        'completed': 'success',
+                        'cancelled': 'danger'
+                    };
+                    return statusMap[status] || 'info';
+                };
+                
+                const viewDetails = (row) => {
+                    ElMessage.info(`${t('common.view')}: ${row.name}`);
+                };
+                
+                const approveExperiment = (row) => {
+                    ElMessage.success(`${t('experimentManagement.approve')}: ${row.name}`);
+                    row.status = 'inProgress';
+                };
+                
+                const rejectExperiment = (row) => {
+                    ElMessage.error(`${t('experimentManagement.reject')}: ${row.name}`);
+                    row.status = 'cancelled';
+                };
+                
+                return {
+                    experimentList,
+                    getStatusType,
+                    viewDetails,
+                    approveExperiment,
+                    rejectExperiment
+                };
+            }
+        };
+
+        const RiskMonitor = {
+            template: `
+                <div>
+                    <h2>{{ $t('riskMonitor.title') }}</h2>
+                    
+                    <!-- 风险级别仪表盘 -->
+                    <el-row :gutter="20" style="margin-bottom: 20px;">
+                        <el-col :span="8">
+                            <el-card shadow="hover">
+                                <div style="text-align: center;">
+                                    <h3>{{ $t('riskMonitor.currentRiskLevel') }}</h3>
+                                    <div style="font-size: 48px; margin: 10px 0;">
+                                        <span :style="{ color: getRiskLevelColor(currentRisk.level) }">
+                                            {{ $t(\`riskMonitor.\${currentRisk.level}\`) }}
+                                        </span>
+                                    </div>
+                                    <p>{{ $t('riskMonitor.lastUpdated') }}: {{ currentRisk.lastUpdated }}</p>
+                                </div>
+                            </el-card>
+                        </el-col>
+                        <el-col :span="16">
+                            <el-card shadow="hover">
+                                <h3>{{ $t('riskMonitor.monitoringDashboard') }}</h3>
+                                <el-row :gutter="10">
+                                    <el-col :span="8" v-for="risk in riskSummary" :key="risk.level">
+                                        <div :style="{ backgroundColor: getRiskLevelColor(risk.level), padding: '10px', borderRadius: '4px', color: 'white', textAlign: 'center', margin: '5px 0' }">
+                                            <div>{{ $t(\`riskMonitor.\${risk.level}\`) }}</div>
+                                            <div style="font-size: 24px; font-weight: bold;">{{ risk.count }}</div>
+                                        </div>
+                                    </el-col>
+                                </el-row>
+                            </el-card>
+                        </el-col>
+                    </el-row>
+                    
+                    <!-- 警报和通知 -->
+                    <el-row :gutter="20" style="margin-bottom: 20px;">
+                        <el-col :span="12">
+                            <el-card shadow="hover">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h3>{{ $t('riskMonitor.alerts') }}</h3>
+                                    <el-button size="small">{{ $t('riskMonitor.viewDetails') }}</el-button>
+                                </div>
+                                <el-timeline>
+                                    <el-timeline-item v-for="alert in alerts" :key="alert.id" :type="alert.type" :timestamp="alert.timestamp">
+                                        {{ alert.message }}
+                                    </el-timeline-item>
+                                </el-timeline>
+                            </el-card>
+                        </el-col>
+                        <el-col :span="12">
+                            <el-card shadow="hover">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <h3>{{ $t('riskMonitor.notifications') }}</h3>
+                                    <el-button size="small">{{ $t('riskMonitor.settings') }}</el-button>
+                                </div>
+                                <div v-for="notification in notifications" :key="notification.id" style="padding: 10px 0; border-bottom: 1px solid #eee;">
+                                    <div>{{ notification.title }}</div>
+                                    <div style="font-size: 12px; color: #999;">{{ notification.time }}</div>
+                                </div>
+                            </el-card>
+                        </el-col>
+                    </el-row>
+                    
+                    <!-- 操作按钮 -->
+                    <div style="text-align: right; margin-top: 20px;">
+                        <el-button>{{ $t('riskMonitor.generateReport') }}</el-button>
+                        <el-button type="primary">{{ $t('riskMonitor.exportData') }}</el-button>
+                    </div>
+                </div>
+            `,
+            setup() {
+                const { t } = useI18n();
+                const currentRisk = ref({
+                    level: 'normal',
+                    lastUpdated: new Date().toLocaleString()
+                });
+                
+                const riskSummary = ref([
+                    { level: 'critical', count: 2 },
+                    { level: 'warning', count: 5 },
+                    { level: 'normal', count: 18 }
+                ]);
+                
+                const alerts = ref([
+                    {
+                        id: 1,
+                        type: 'danger',
+                        timestamp: '2023-11-20 10:30',
+                        message: '实验室A温度超过安全阈值'
+                    },
+                    {
+                        id: 2,
+                        type: 'warning',
+                        timestamp: '2023-11-20 09:15',
+                        message: '通风系统需要维护'
+                    }
+                ]);
+                
+                const notifications = ref([
+                    {
+                        id: 1,
+                        title: '安全检查已完成',
+                        time: '2023-11-20 08:00'
+                    },
+                    {
+                        id: 2,
+                        title: '新安全规程已发布',
+                        time: '2023-11-19 16:30'
+                    }
+                ]);
+                
+                const getRiskLevelColor = (level) => {
+                    const colorMap = {
+                        'critical': '#F56C6C',
+                        'warning': '#E6A23C',
+                        'normal': '#67C23A'
+                    };
+                    return colorMap[level] || '#909399';
+                };
+                
+                return {
+                    currentRisk,
+                    riskSummary,
+                    alerts,
+                    notifications,
+                    getRiskLevelColor
+                };
+            }
+        };
+
+        // 主应用
+        const app = createApp({
+            components: {
+                ChemicalManagement,
+                SafetyDataManagement,
+                ExperimentManagement,
+                RiskMonitor
+            },
+            setup() {
+                const { t, locale } = useI18n();
+                const activeMenu = ref('1');
+                const currentComponent = ref('ChemicalManagement');
+                const currentLanguage = ref(locale.value);
+
+                // 语言切换功能
+                const changeLanguage = (lang) => {
+                    locale.value = lang;
+                    currentLanguage.value = lang;
+                    localStorage.setItem('language', lang); // 保存语言偏好到本地存储
+                };
+
+                // 【已修复】监听菜单选择事件
+                const handleMenuSelect = (key, keyPath) => {
+                    switch(key) {
+                        case '1':
+                            currentComponent.value = 'ChemicalManagement';
+                            break;
+                        case '2':
+                            currentComponent.value = 'SafetyDataManagement';
+                            break;
+                        case '3':
+                            currentComponent.value = 'ExperimentManagement';
+                            break;
+                        case '4':
+                            currentComponent.value = 'RiskMonitor';
+                            break;
+                        default:
+                            currentComponent.value = 'ChemicalManagement';
+                    }
+                };
+
+                return {
+                    activeMenu,
+                    currentComponent,
+                    currentLanguage,
+                    changeLanguage,
+                    handleMenuSelect
+                };
+            }
+        });
+        
+        app.use(ElementPlus);
+        app.use(i18n);
+        app.mount('#app');
+    </script>
+</body>
+</html>
