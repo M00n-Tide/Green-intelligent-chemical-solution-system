@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Intelligent Chemistry System</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/vue-i18n@9/dist/vue-i18n.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/locale/en.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/locale/zh-cn.js"></script>
+    <!-- 添加ECharts用于数据可视化 -->
+    <script src="https://unpkg.com/echarts/dist/echarts.min.js"></script>
+    <style>
+        .container { padding: 20px; }
+        .el-menu { height: 100vh; border-right: none; }
+        .content { padding: 20px; }
+        .chart-container { 
+            margin: 20px 0; 
+            height: 400px; 
+            border: 1px solid #eee; 
+            border-radius: 4px;
+        }
+        .stat-cards {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            flex: 1;
+            padding: 20px;
+            background: #f5f7fa;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #606266;
+        }
+        .stat-card p {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #409eff;
+        }
+        .tag-container {
+            margin-bottom: 10px;
+        }
+        .tag-container .el-tag {
+            margin-right: 5px;
+        }
+        .el-header {
+            background-color: #409EFF;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+        .header-title {
+            margin-left: 15px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .header-left .el-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        .header-left .el-tooltip {
+            display: flex;
+            align-items: center;
+        }
+        .card-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .cost-card {
+            flex: 1;
+            min-width: 250px;
+            padding: 20px;
+            background: #f5f7fa;
+            border-radius: 4px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .cost-card h3 {
+            margin: 0 0 10px 0;
+            color: #606266;
+            font-size: 16px;
+        }
+        .cost-card p {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #409eff;
+        }
+        .chart-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart-container {
+            flex: 1;
+            min-width: 400px;
+            height: 300px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            padding: 10px;
+        }
+        .chart-title {
+            font-size: 16px;
+            color: #303133;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" style="height: 100vh;">
+        <el-container style="height: 100%;">
+            <el-header>
+                <div class="header-left">
+                    <el-tooltip content="Lumap绿色智能化学系统 | Green Intelligent Chemistry System" placement="bottom">
+                        <div>
+                            <el-icon><House /></el-icon>
+                            <div class="header-title">{{ $t('system.title') }}</div>
+                        </div>
+                    </el-tooltip>
+                </div>
+                <div class="header-right">
+                    <el-dropdown @command="changeLanguage">
+                        <span class="el-dropdown-link" style="color: white; cursor: pointer;">
+                            {{ currentLanguageDisplay }}
+                            <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                        </span>
+                        <template #dropdown>
+                            <el-dropdown-menu>
+                                <el-dropdown-item command="zh-CN">🇨🇳 中文</el-dropdown-item>
+                                <el-dropdown-item command="en-US">🇺🇸 English</el-dropdown-item>
+                            </el-dropdown-menu>
+                        </template>
+                    </el-dropdown>
+                </div>
+            </el-header>
+            <el-container>
+                <el-aside width="200px">
+                    <el-menu :default-active="activeModule" @select="handleSelect" class="el-menu-vertical" 
+                             background-color="#545c64" text-color="#fff" active-text-color="#ffd04b">
+                        <el-menu-item index="chemical">
+                            <el-icon><DocumentCopy /></el-icon>
+                            <span>{{ $t('menu.chemical') }}</span>
+                        </el-menu-item>
+                        <el-menu-item index="safety">
+                            <el-icon><Files /></el-icon>
+                            <span>{{ $t('menu.safety') }}</span>
+                        </el-menu-item>
+                        <el-menu-item index="experiment">
+                            <el-icon><Notebook /></el-icon>
+                            <span>{{ $t('menu.experiment') }}</span>
+                        </el-menu-item>
+                        <el-menu-item index="cost">
+                            <el-icon><Money /></el-icon>
+                            <span>{{ $t('menu.cost') }}</span>
+                        </el-menu-item>
+                        <el-menu-item index="analysis">
+                            <el-icon><DataLine /></el-icon>
+                            <span>{{ $t('menu.analysis') }}</span>
+                        </el-menu-item>
+                        <el-menu-item index="risk">
+                            <el-icon><Warning /></el-icon>
+                            <span>{{ $t('menu.risk') }}</span>
+                        </el-menu-item>
+                    </el-menu>
+                </el-aside>
+                <el-main>
+                    <!-- Chemical Management Module -->
+                    <div v-if="activeModule === 'chemical'" class="container">
+                        <h2>{{ $t('chemical.title') }}</h2>
+                        <el-tabs type="border-card">
+                            <el-tab-pane :label="$t('chemical.catalog')">
+                                <el-table :data="chemicalCatalogs" stripe style="width: 100%">
+                                    <el-table-column prop="chemicalName" :label="$t('chemical.name')" width="180" />
+                                    <el-table-column prop="casNumber" label="CAS" width="120" />
+                                    <el-table-column prop="molecularFormula" :label="$t('chemical.formula')" />
+                                    <el-table-column prop="hazardLevel" :label="$t('chemical.hazard')" width="150">
+                                        <template #default="scope">
+                                            <el-tag :type="getHazardType(scope.row.hazardLevel)">
+                                                {{ scope.row.hazardLevel }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="storageCondition" :label="$t('chemical.storage')" />
+                                    <el-table-column :label="$t('common.actions')" width="150">
+                                        <template #default="scope">
+                                            <el-button size="small" type="primary" @click="viewChemicalDetails(scope.row)">{{ $t('common.view') }}</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </el-tab-pane>
+                            <el-tab-pane :label="$t('chemical.inventory')">
+                                <el-table :data="chemicalInventory" stripe style="width: 100%">
+                                    <el-table-column prop="catalog.chemicalName" :label="$t('chemical.name')" width="180" />
+                                    <el-table-column prop="inventoryQuantity" :label="$t('chemical.quantity')" width="120" />
+                                    <el-table-column prop="storageLocation" :label="$t('chemical.location')" />
+                                    <el-table-column prop="status" :label="$t('chemical.status')" width="120">
+                                        <template #default="scope">
+                                            <el-tag :type="getStatusType(scope.row.status)">
+                                                {{ scope.row.status }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column :label="$t('common.actions')" width="150">
+                                        <template #default="scope">
+                                            <el-button size="small" type="primary" @click="updateInventory(scope.row)">{{ $t('common.update') }}</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </el-tab-pane>
+                        </el-tabs>
+                    </div>
+                    
+                    <!-- Safety Data Management Module -->
+                    <div v-if="activeModule === 'safety'" class="container">
+                        <h2>{{ $t('safety.title') }}</h2>
+                        <el-table :data="safetyDatasheets" stripe style="width: 100%">
+                            <el-table-column prop="chem.chemicalName" :label="$t('chemical.name')" width="180" />
+                            <el-table-column prop="version" :label="$t('safety.version')" width="120" />
+                            <el-table-column prop="effectiveDate" :label="$t('safety.effectiveDate')" width="150" />
+                            <el-table-column prop="status" :label="$t('chemical.status')" width="120">
+                                <template #default="scope">
+                                    <el-tag :type="getStatusType(scope.row.status)">
+                                        {{ scope.row.status }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="fileFormat" :label="$t('safety.format')" width="100" />
+                            <el-table-column :label="$t('common.actions')" width="200">
+                                <template #default="scope">
+                                    <el-button size="small" type="primary" @click="viewSDS(scope.row)">{{ $t('common.view') }}</el-button>
+                                    <el-button size="small" type="success" @click="downloadSDS(scope.row)">{{ $t('common.download') }}</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+                    
+                    <!-- Experiment Management Module -->
+                    <div v-if="activeModule === 'experiment'" class="container">
+                        <h2>{{ $t('experiment.title') }}</h2>
+                        <el-tabs type="border-card">
+                            <el-tab-pane :label="$t('experiment.design')">
+                                <el-table :data="experimentDesigns" stripe style="width: 100%">
+                                    <el-table-column prop="designName" :label="$t('experiment.designName')" width="200" />
+                                    <el-table-column prop="creatorId" :label="$t('experiment.creator')" width="120" />
+                                    <el-table-column prop="createdDate" :label="$t('experiment.createdDate')" width="150" />
+                                    <el-table-column prop="status" :label="$t('chemical.status')" width="120">
+                                        <template #default="scope">
+                                            <el-tag :type="getStatusType(scope.row.status)">
+                                                {{ scope.row.status }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="reagents" :label="$t('experiment.reagents')" />
+                                    <el-table-column :label="$t('common.actions')" width="150">
+                                        <template #default="scope">
+                                            <el-button size="small" type="primary" @click="viewExperimentDetails(scope.row)">{{ $t('common.view') }}</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </el-tab-pane>
+                            <el-tab-pane :label="$t('experiment.record')">
+                                <el-table :data="experimentRecords" stripe style="width: 100%">
+                                    <el-table-column prop="design.designName" :label="$t('experiment.designName')" width="200" />
+                                    <el-table-column prop="executorId" :label="$t('experiment.executor')" width="120" />
+                                    <el-table-column prop="execTime" :label="$t('experiment.execTime')" width="150" />
+                                    <el-table-column prop="result" :label="$t('experiment.result')" />
+                                    <el-table-column :label="$t('common.actions')" width="150">
+                                        <template #default="scope">
+                                            <el-button size="small" type="primary" @click="viewExperimentRecord(scope.row)">{{ $t('common.view') }}</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </el-tab-pane>
+                        </el-tabs>
+                    </div>
+
+                    <!-- Experiment Cost Management Module -->
+                    <div v-if="activeModule === 'cost'" class="container">
+                        <h2>{{ $t('cost.title') }}</h2>
+                        
+                        <!-- Cost Overview Cards -->
+                        <div class="card-container">
+                            <div class="cost-card">
+                                <h3>{{ $t('cost.total') }}</h3>
+                                <p>${{ totalCost.toFixed(2) }}</p>
+                            </div>
+                            <div class="cost-card">
+                                <h3>{{ $t('cost.reagents') }}</h3>
+                                <p>${{ categoryCosts.reagents.toFixed(2) }}</p>
+                            </div>
+                            <div class="cost-card">
+                                <h3>{{ $t('cost.equipment') }}</h3>
+                                <p>${{ categoryCosts.equipment.toFixed(2) }}</p>
+                            </div>
+                            <div class="cost-card">
+                                <h3>{{ $t('cost.labor') }}</h3>
+                                <p>${{ categoryCosts.labor.toFixed(2) }}</p>
+                            </div>
+                            <div class="cost-card">
+                                <h3>{{ $t('cost.consumables') }}</h3>
+                                <p>${{ categoryCosts.consumables.toFixed(2) }}</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Cost Details Table -->
+                        <el-table :data="experimentCosts" stripe style="width: 100%; margin-top: 20px;">
+                            <el-table-column prop="itemName" :label="$t('cost.item')" width="180" />
+                            <el-table-column prop="costCategory" :label="$t('cost.category')" width="120">
+                                <template #default="scope">
+                                    <el-tag :type="getCategoryTagType(scope.row.costCategory)">
+                                        {{ scope.row.costCategory }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="unitPrice" :label="$t('cost.unitPrice')" width="120">
+                                <template #default="scope">
+                                    ${{ scope.row.unitPrice.toFixed(2) }}
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="quantity" :label="$t('cost.quantity')" width="120" />
+                            <el-table-column prop="totalCost" :label="$t('cost.total')" width="120">
+                                <template #default="scope">
+                                    ${{ scope.row.totalCost.toFixed(2) }}
+                                </template>
+                            </el-table-column>
+                            <el-table-column prop="currency" :label="$t('cost.currency')" width="100" />
+                            <el-table-column prop="experimentRecord.id" :label="$t('cost.experiment')" width="150" />
+                            <el-table-column :label="$t('common.actions')" width="150">
+                                <template #default="scope">
+                                    <el-button size="small" type="primary" @click="editCostItem(scope.row)">{{ $t('common.edit') }}</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        
+                        <div style="margin-top: 20px;">
+                            <el-button type="primary" @click="addCostItem">{{ $t('cost.add') }}</el-button>
+                            <el-button type="success" @click="exportCostData">{{ $t('cost.export') }}</el-button>
+                        </div>
+                    </div>
+
+                    <!-- Experiment Data Analysis Module -->
+                    <div v-if="activeModule === 'analysis'" class="container">
+                        <h2>{{ $t('analysis.title') }}</h2>
+                        
+                        <!-- Parameter Statistics -->
+                        <el-table :data="parameterStatistics" stripe style="width: 100%;">
+                            <el-table-column prop="parameterName" :label="$t('analysis.parameter')" width="180" />
+                            <el-table-column prop="parameterUnit" :label="$t('analysis.unit')" width="120" />
+                            <el-table-column prop="averageValue" :label="$t('analysis.average')" width="120" />
+                            <el-table-column prop="minValue" :label="$t('analysis.min')" width="120" />
+                            <el-table-column prop="maxValue" :label="$t('analysis.max')" width="120" />
+                            <el-table-column prop="averageDeviation" :label="$t('analysis.deviation')" width="120" />
+                            <el-table-column :label="$t('common.actions')" width="150">
+                                <template #default="scope">
+                                    <el-button size="small" type="primary" @click="viewParameterDetails(scope.row)">{{ $t('common.view') }}</el-button>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                        
+                        <!-- Data Visualization Charts -->
+                        <div class="chart-row">
+                            <div class="chart-container">
+                                <div class="chart-title">{{ $t('analysis.trendChart') }}</div>
+                                <div :id="trendChartId" style="width: 100%; height: 280px;"></div>
+                            </div>
+                            <div class="chart-container">
+                                <div class="chart-title">{{ $t('analysis.comparisonChart') }}</div>
+                                <div :id="comparisonChartId" style="width: 100%; height: 280px;"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-row">
+                            <div class="chart-container">
+                                <div class="chart-title">{{ $t('analysis.deviationChart') }}</div>
+                                <div :id="deviationChartId" style="width: 100%; height: 280px;"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 20px;">
+                            <el-button type="primary" @click="addDataPoint">{{ $t('analysis.addData') }}</el-button>
+                            <el-button type="success" @click="exportAnalysisData">{{ $t('analysis.export') }}</el-button>
+                        </div>
+                    </div>
+                    
+                    <!-- Risk Monitor Module -->
+                    <div v-if="activeModule === 'risk'" class="container">
+                        <h2>{{ $t('risk.title') }}</h2>
+                        <el-tabs type="border-card">
+                            <el-tab-pane :label="$t('risk.analyzer')">
+                                <el-table :data="riskAnalyzers" stripe style="width: 100%">
+                                    <el-table-column prop="chem.chemicalName" :label="$t('chemical.name')" width="180" />
+                                    <el-table-column prop="riskType" :label="$t('risk.type')" width="120" />
+                                    <el-table-column prop="riskLevel" :label="$t('risk.level')" width="120">
+                                        <template #default="scope">
+                                            <el-tag :type="getRiskType(scope.row.riskLevel)">
+                                                {{ scope.row.riskLevel }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="analysisTime" :label="$t('risk.analysisTime')" width="150" />
+                                    <el-table-column prop="suggestion" :label="$t('risk.suggestion')" />
+                                    <el-table-column :label="$t('common.actions')" width="150">
+                                        <template #default="scope">
+                                            <el-button size="small" type="primary" @click="viewRiskDetails(scope.row)">{{ $t('common.view') }}</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </el-tab-pane>
+                            <el-tab-pane :label="$t('risk.monitor')">
+                                <el-table :data="riskMonitors" stripe style="width: 100%">
+                                    <el-table-column prop="analyzer.chem.chemicalName" :label="$t('chemical.name')" width="180" />
+                                    <el-table-column prop="analyzer.riskType" :label="$t('risk.type')" width="120" />
+                                    <el-table-column prop="monitorStatus" :label="$t('risk.status')" width="120">
+                                        <template #default="scope">
+                                            <el-tag :type="getMonitorStatusType(scope.row.monitorStatus)">
+                                                {{ scope.row.monitorStatus }}
+                                            </el-tag>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column prop="lastCheckTime" :label="$t('risk.lastCheck')" width="150" />
+                                    <el-table-column prop="threshold" :label="$t('risk.threshold')" />
+                                    <el-table-column :label="$t('common.actions')" width="150">
+                                        <template #default="scope">
+                                            <el-button size="small" type="primary" @click="checkRiskStatus(scope.row)">{{ $t('risk.check') }}</el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </el-tab-pane>
+                        </el-tabs>
+                    </div>
+                </el-main>
+            </el-container>
+        </el-container>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, watch } = Vue;
+        const { createI18n } = VueI18n;
+        
+        const messages = {
+            'zh-CN': {
+                system: {
+                    title: '绿色智能化学系统'
+                },
+                menu: {
+                    chemical: '化学品管理',
+                    safety: '安全数据管理',
+                    experiment: '实验管理',
+                    cost: '实验成本管理',
+                    analysis: '实验数据分析',
+                    risk: '风险监控'
+                },
+                chemical: {
+                    title: '化学品管理',
+                    catalog: '化学品目录',
+                    inventory: '库存管理',
+                    name: '化学品名称',
+                    formula: '分子式',
+                    hazard: '危险等级',
+                    storage: '存储条件',
+                    quantity: '库存数量',
+                    location: '存储位置',
+                    status: '状态'
+                },
+                safety: {
+                    title: '安全数据管理',
+                    version: '版本',
+                    effectiveDate: '生效日期',
+                    format: '文件格式'
+                },
+                experiment: {
+                    title: '实验管理',
+                    design: '实验设计',
+                    record: '实验记录',
+                    designName: '实验名称',
+                    creator: '创建人',
+                    createdDate: '创建日期',
+                    executor: '执行人',
+                    execTime: '执行时间',
+                    result: '实验结果',
+                    reagents: '试剂'
+                },
+                cost: {
+                    title: '实验成本管理',
+                    total: '总成本',
+                    reagents: '试剂成本',
+                    equipment: '设备成本',
+                    labor: '人工成本',
+                    consumables: '耗材成本',
+                    item: '项目',
+                    category: '类别',
+                    unitPrice: '单价',
+                    quantity: '数量',
+                    currency: '货币',
+                    experiment: '实验',
+                    add: '添加成本项',
+                    export: '导出数据'
+                },
+                analysis: {
+                    title: '实验数据分析',
+                    parameter: '参数名称',
+                    unit: '单位',
+                    average: '平均值',
+                    min: '最小值',
+                    max: '最大值',
+                    deviation: '平均偏差',
+                    trendChart: '参数趋势图',
+                    comparisonChart: '参数对比图',
+                    deviationChart: '偏差分析图',
+                    addData: '添加数据点',
+                    export: '导出分析'
+                },
+                risk: {
+                    title: '风险监控',
+                    analyzer: '风险分析',
+                    monitor: '风险监控',
+                    type: '风险类型',
+                    level: '风险等级',
+                    analysisTime: '分析时间',
+                    suggestion: '建议',
+                    status: '监控状态',
+                    lastCheck: '上次检查',
+                    threshold: '阈值',
+                    check: '检查状态'
+                },
+                common: {
+                    view: '查看',
+                    update: '更新',
+                    edit: '编辑',
+                    download: '下载',
+                    actions: '操作'
+                }
+            },
+            'en-US': {
+                system: {
+                    title: 'Green Intelligent Chemistry System'
+                },
+                menu: {
+                    chemical: 'Chemical Management',
+                    safety: 'Safety Data Management',
+                    experiment: 'Experiment Management',
+                    cost: 'Experiment Cost Management',
+                    analysis: 'Experiment Data Analysis',
+                    risk: 'Risk Monitor'
+                },
+                chemical: {
+                    title: 'Chemical Management',
+                    catalog: 'Chemical Catalog',
+                    inventory: 'Inventory Management',
+                    name: 'Chemical Name',
+                    formula: 'Molecular Formula',
+                    hazard: 'Hazard Level',
+                    storage: 'Storage Condition',
+                    quantity: 'Inventory Quantity',
+                    location: 'Storage Location',
+                    status: 'Status'
+                },
+                safety: {
+                    title: 'Safety Data Management',
+                    version: 'Version',
+                    effectiveDate: 'Effective Date',
+                    format: 'File Format'
+                },
+                experiment: {
+                    title: 'Experiment Management',
+                    design: 'Experiment Design',
+                    record: 'Experiment Record',
+                    designName: 'Experiment Name',
+                    creator: 'Creator',
+                    createdDate: 'Created Date',
+                    executor: 'Executor',
+                    execTime: 'Execution Time',
+                    result: 'Result',
+                    reagents: 'Reagents'
+                },
+                cost: {
+                    title: 'Experiment Cost Management',
+                    total: 'Total Cost',
+                    reagents: 'Reagents Cost',
+                    equipment: 'Equipment Cost',
+                    labor: 'Labor Cost',
+                    consumables: 'Consumables Cost',
+                    item: 'Item',
+                    category: 'Category',
+                    unitPrice: 'Unit Price',
+                    quantity: 'Quantity',
+                    currency: 'Currency',
+                    experiment: 'Experiment',
+                    add: 'Add Cost Item',
+                    export: 'Export Data'
+                },
+                analysis: {
+                    title: 'Experiment Data Analysis',
+                    parameter: 'Parameter Name',
+                    unit: 'Unit',
+                    average: 'Average Value',
+                    min: 'Min Value',
+                    max: 'Max Value',
+                    deviation: 'Avg Deviation',
+                    trendChart: 'Parameter Trend Chart',
+                    comparisonChart: 'Parameter Comparison Chart',
+                    deviationChart: 'Deviation Analysis Chart',
+                    addData: 'Add Data Point',
+                    export: 'Export Analysis'
+                },
+                risk: {
+                    title: 'Risk Monitor',
+                    analyzer: 'Risk Analyzer',
+                    monitor: 'Risk Monitor',
+                    type: 'Risk Type',
+                    level: 'Risk Level',
+                    analysisTime: 'Analysis Time',
+                    suggestion: 'Suggestion',
+                    status: 'Monitor Status',
+                    lastCheck: 'Last Check',
+                    threshold: 'Threshold',
+                    check: 'Check Status'
+                },
+                common: {
+                    view: 'View',
+                    update: 'Update',
+                    edit: 'Edit',
+                    download: 'Download',
+                    actions: 'Actions'
+                }
+            }
+        };
+        
+        const i18n = createI18n({
+            locale: localStorage.getItem('language') || 'zh-CN',
+            fallbackLocale: 'en-US',
+            messages
+        });
+        
+        createApp({
+            setup() {
+                const activeModule = ref('chemical');
+                const chemicalCatalogs = ref([]);
+                const chemicalInventory = ref([]);
+                const safetyDatasheets = ref([]);
+                const experimentDesigns = ref([]);
+                const experimentRecords = ref([]);
+                const riskAnalyzers = ref([]);
+                const riskMonitors = ref([]);
+                
+                // Experiment cost management data
+                const experimentCosts = ref([]);
+                const totalCost = ref(0);
+                const categoryCosts = ref({
+                    reagents: 0,
+                    equipment: 0,
+                    labor: 0,
+                    consumables: 0
+                });
+                
+                // Experiment data analysis data
+                const experimentData = ref([]);
+                const parameterStatistics = ref([]);
+                
+                // Chart IDs
+                const trendChartId = ref('trend-chart-' + Date.now());
+                const comparisonChartId = ref('comparison-chart-' + Date.now());
+                const deviationChartId = ref('deviation-chart-' + Date.now());
+                
+                const handleSelect = (index) => {
+                    activeModule.value = index;
+                    if (index === 'cost') {
+                        loadCostData();
+                        loadCategoryCosts();
+                    } else if (index === 'analysis') {
+                        loadAnalysisData();
+                    }
+                };
+                
+                const changeLanguage = (lang) => {
+                    i18n.global.locale = lang;
+                    localStorage.setItem('language', lang);
+                };
+                
+                const currentLanguageDisplay = computed(() => {
+                    return i18n.global.locale === 'zh-CN' ? '🇨🇳 中文' : '🇺🇸 English';
+                });
+                
+                // Data loading functions
+                const loadChemicalData = async () => {
+                    try {
+                        const catalogsResponse = await axios.get('/api/chemicals/catalogs');
+                        chemicalCatalogs.value = catalogsResponse.data;
+                        
+                        const inventoryResponse = await axios.get('/api/inventory/list');
+                        chemicalInventory.value = inventoryResponse.data;
+                    } catch (error) {
+                        console.error('Error loading chemical data:', error);
+                        // Fallback to mock data if API is not available
+                        chemicalCatalogs.value = [
+                            { id: 1, chemicalName: 'Ethanol', casNumber: '64-17-5', molecularFormula: 'C2H5OH', hazardLevel: 'Medium Risk', storageCondition: 'Cool dry place' },
+                            { id: 2, chemicalName: 'Sodium Hydroxide', casNumber: '1310-73-2', molecularFormula: 'NaOH', hazardLevel: 'High Risk', storageCondition: 'Sealed dry place' }
+                        ];
+                        
+                        chemicalInventory.value = [
+                            { id: 1, catalog: { chemicalName: 'Ethanol' }, inventoryQuantity: 500, storageLocation: 'Area A - Cabinet 1', status: 'NORMAL' },
+                            { id: 2, catalog: { chemicalName: 'Sodium Hydroxide' }, inventoryQuantity: 50, storageLocation: 'Area B - Cabinet 2', status: 'NORMAL' }
+                        ];
+                    }
+                };
+                
+                const loadSafetyData = async () => {
+                    try {
+                        const response = await axios.get('/api/safety-datasheets');
+                        safetyDatasheets.value = response.data;
+                    } catch (error) {
+                        console.error('Error loading safety data:', error);
+                        safetyDatasheets.value = [
+                            { id: 1, chem: { chemicalName: 'Ethanol' }, version: 'v1.0', effectiveDate: '2023-01-01', status: 'Effective', fileFormat: 'PDF' },
+                            { id: 2, chem: { chemicalName: 'Sodium Hydroxide' }, version: 'v1.0', effectiveDate: '2023-01-01', status: 'Effective', fileFormat: 'PDF' }
+                        ];
+                    }
+                };
+                
+                const loadExperimentData = async () => {
+                    try {
+                        const designsResponse = await axios.get('/api/experiments/designs');
+                        experimentDesigns.value = designsResponse.data;
+                        
+                        const recordsResponse = await axios.get('/api/experiments/records');
+                        experimentRecords.value = recordsResponse.data;
+                    } catch (error) {
+                        console.error('Error loading experiment data:', error);
+                        experimentDesigns.value = [
+                            { id: 1, designName: 'Organic Synthesis Experiment', creatorId: 1, createdDate: '2023-01-01', status: 'Approved', reagents: 'Ethanol, Sulfuric Acid' }
+                        ];
+                        
+                        experimentRecords.value = [
+                            { id: 1, design: { designName: 'Organic Synthesis Experiment' }, executorId: 1, execTime: '2023-01-01', result: 'Successfully produced target product' }
+                        ];
+                    }
+                };
+                
+                const loadRiskData = async () => {
+                    try {
+                        const analyzersResponse = await axios.get('/api/risk-analyzers');
+                        riskAnalyzers.value = analyzersResponse.data;
+                        
+                        const monitorsResponse = await axios.get('/api/risk-monitors');
+                        riskMonitors.value = monitorsResponse.data;
+                    } catch (error) {
+                        console.error('Error loading risk data:', error);
+                        riskAnalyzers.value = [
+                            { id: 1, chem: { chemicalName: 'Ethanol' }, riskType: 'Flammability', riskLevel: 3, analysisTime: '2023-01-01', suggestion: 'Keep away from fire sources' }
+                        ];
+                        
+                        riskMonitors.value = [
+                            { id: 1, analyzer: { chem: { chemicalName: 'Ethanol' }, riskType: 'Flammability' }, monitorStatus: 'Running', lastCheckTime: '2023-01-01', threshold: 'Temperature>30°C' }
+                        ];
+                    }
+                };
+                
+                // Load cost data
+                const loadCostData = async () => {
+                    try {
+                        const response = await axios.get('/api/experiment-costs');
+                        experimentCosts.value = response.data;
+                        
+                        // Calculate total cost
+                        totalCost.value = experimentCosts.value.reduce((sum, item) => sum + item.totalCost, 0);
+                    } catch (error) {
+                        console.error('Error loading cost data:', error);
+                        experimentCosts.value = [
+                            { id: 1, itemName: 'Ethanol', costCategory: 'Reagents', unitPrice: 5.25, quantity: 0.1, totalCost: 0.525, currency: 'USD', experimentRecord: { id: 1 } },
+                            { id: 2, itemName: 'Glass Beaker', costCategory: 'Equipment', unitPrice: 12.50, quantity: 1, totalCost: 12.50, currency: 'USD', experimentRecord: { id: 1 } }
+                        ];
+                        
+                        totalCost.value = experimentCosts.value.reduce((sum, item) => sum + item.totalCost, 0);
+                    }
+                };
+                
+                // Load category costs
+                const loadCategoryCosts = async () => {
+                    try {
+                        const response = await axios.get('/api/experiment-costs/by-category');
+                        categoryCosts.value = response.data;
+                    } catch (error) {
+                        console.error('Error loading category costs:', error);
+                        // Calculate from local data
+                        categoryCosts.value = {
+                            reagents: 0,
+                            equipment: 0,
+                            labor: 0,
+                            consumables: 0
+                        };
+                        
+                        experimentCosts.value.forEach(item => {
+                            const category = item.costCategory.toLowerCase();
+                            if (categoryCosts.value[category] !== undefined) {
+                                categoryCosts.value[category] += item.totalCost;
+                            }
+                        });
+                    }
+                };
+                
+                // Load analysis data
+                const loadAnalysisData = async () => {
+                    try {
+                        const response = await axios.get('/api/experiment-data/statistics');
+                        parameterStatistics.value = response.data;
+                        
+                        const dataResponse = await axios.get('/api/experiment-data');
+                        experimentData.value = dataResponse.data;
+                        
+                        // Draw charts after data is loaded
+                        nextTick(() => {
+                            drawCharts();
+                        });
+                    } catch (error) {
+                        console.error('Error loading analysis data:', error);
+                        parameterStatistics.value = [
+                            { id: 1, parameterName: 'Temperature', parameterUnit: '°C', averageValue: 25.4, minValue: 24.8, maxValue: 26.0, averageDeviation: 0.43 }
+                        ];
+                        
+                        experimentData.value = [
+                            { id: 1, experimentRecord: { id: 1 }, parameterName: 'Temperature', parameterUnit: '°C', measurementValue: 25.5, expectedValue: 25.0, deviation: 0.5, measurementTime: '2023-01-01T00:00:00' },
+                            { id: 2, experimentRecord: { id: 1 }, parameterName: 'Temperature', parameterUnit: '°C', measurementValue: 26.0, expectedValue: 25.0, deviation: 1.0, measurementTime: '2023-01-01T00:05:00' }
+                        ];
+                        
+                        // Draw charts with mock data
+                        nextTick(() => {
+                            drawCharts();
+                        });
+                    }
+                };
+                
+                // Draw charts
+                const drawCharts = () => {
+                    // Draw trend chart
+                    const trendChart = echarts.init(document.getElementById(trendChartId.value));
+                    const trendOption = {
+                        title: { text: '', left: 'center' },
+                        tooltip: { trigger: 'axis' },
+                        legend: { data: [i18n.global.t('analysis.measurement'), i18n.global.t('analysis.expected')], top: 30 },
+                        xAxis: { type: 'category', data: experimentData.value.map(item => item.measurementTime) },
+                        yAxis: { type: 'value' },
+                        series: [
+                            { name: i18n.global.t('analysis.measurement'), type: 'line', data: experimentData.value.map(item => item.measurementValue) },
+                            { name: i18n.global.t('analysis.expected'), type: 'line', data: experimentData.value.map(item => item.expectedValue) }
+                        ]
+                    };
+                    trendChart.setOption(trendOption);
+                    
+                    // Draw comparison chart
+                    const comparisonChart = echarts.init(document.getElementById(comparisonChartId.value));
+                    const parameterNames = [...new Set(experimentData.value.map(item => item.parameterName))];
+                    const avgValues = parameterNames.map(name => {
+                        const values = experimentData.value.filter(item => item.parameterName === name);
+                        return values.reduce((sum, item) => sum + item.measurementValue, 0) / values.length;
+                    });
+                    
+                    const comparisonOption = {
+                        title: { text: '', left: 'center' },
+                        tooltip: { trigger: 'axis' },
+                        xAxis: { type: 'category', data: parameterNames },
+                        yAxis: { type: 'value' },
+                        series: [{ name: i18n.global.t('analysis.average'), type: 'bar', data: avgValues }]
+                    };
+                    comparisonChart.setOption(comparisonOption);
+                    
+                    // Draw deviation chart
+                    const deviationChart = echarts.init(document.getElementById(deviationChartId.value));
+                    const deviationData = parameterNames.map(name => {
+                        const values = experimentData.value.filter(item => item.parameterName === name);
+                        return values.reduce((sum, item) => sum + Math.abs(item.deviation), 0) / values.length;
+                    });
+                    
+                    const deviationOption = {
+                        title: { text: '', left: 'center' },
+                        tooltip: { trigger: 'axis' },
+                        xAxis: { type: 'category', data: parameterNames },
+                        yAxis: { type: 'value' },
+                        series: [{ name: i18n.global.t('analysis.deviation'), type: 'bar', data: deviationData }]
+                    };
+                    deviationChart.setOption(deviationOption);
+                };
+                
+                // Helper functions
+                const getHazardType = (level) => {
+                    if (level.includes('High')) return 'danger';
+                    if (level.includes('Medium')) return 'warning';
+                    return 'success';
+                };
+                
+                const getStatusType = (status) => {
+                    if (status === 'Effective' || status === 'Approved' || status === 'Running') return 'success';
+                    if (status === 'Draft' || status === 'Stopped') return 'info';
+                    if (status === 'Alert') return 'warning';
+                    return 'primary';
+                };
+                
+                const getRiskType = (level) => {
+                    if (level >= 4) return 'danger';
+                    if (level >= 3) return 'warning';
+                    return 'success';
+                };
+                
+                const getMonitorStatusType = (status) => {
+                    if (status === 'Running') return 'success';
+                    if (status === 'Alert') return 'warning';
+                    return 'info';
+                };
+                
+                const getCategoryTagType = (category) => {
+                    const types = {
+                        'Reagents': '',
+                        'Equipment': 'success',
+                        'Labor': 'warning',
+                        'Consumables': 'info'
+                    };
+                    return types[category] || 'primary';
+                };
+                
+                // Action functions
+                const viewChemicalDetails = (chemical) => {
+                    console.log('View chemical details:', chemical);
+                    ElementPlus.ElMessage.info(i18n.global.t('common.view') + ': ' + chemical.chemicalName);
+                };
+                
+                const updateInventory = (inventory) => {
+                    console.log('Update inventory:', inventory);
+                    ElementPlus.ElMessage.success(i18n.global.t('common.update') + ': ' + inventory.catalog.chemicalName);
+                };
+                
+                const viewSDS = (sds) => {
+                    console.log('View SDS:', sds);
+                    ElementPlus.ElMessage.info(i18n.global.t('common.view') + ': ' + sds.chem.chemicalName);
+                };
+                
+                const downloadSDS = (sds) => {
+                    console.log('Download SDS:', sds);
+                    ElementPlus.ElMessage.success(i18n.global.t('common.download') + ': ' + sds.chem.chemicalName);
+                };
+                
+                const viewExperimentDetails = (experiment) => {
+                    console.log('View experiment details:', experiment);
+                    ElementPlus.ElMessage.info(i18n.global.t('common.view') + ': ' + experiment.designName);
+                };
+                
+                const viewExperimentRecord = (record) => {
+                    console.log('View experiment record:', record);
+                    ElementPlus.ElMessage.info(i18n.global.t('common.view') + ': ' + record.design.designName);
+                };
+                
+                const viewRiskDetails = (risk) => {
+                    console.log('View risk details:', risk);
+                    ElementPlus.ElMessage.info(i18n.global.t('common.view') + ': ' + risk.chem.chemicalName);
+                };
+                
+                const checkRiskStatus = (monitor) => {
+                    console.log('Check risk status:', monitor);
+                    ElementPlus.ElMessage.success(i18n.global.t('risk.check') + ': ' + monitor.analyzer.chem.chemicalName);
+                };
+                
+                // Cost management functions
+                const addCostItem = () => {
+                    ElementPlus.ElMessage.info(i18n.global.t('cost.add') + ' - ' + i18n.global.t('common.actions'));
+                };
+                
+                const editCostItem = (item) => {
+                    console.log('Edit cost item:', item);
+                    ElementPlus.ElMessage.info(i18n.global.t('common.edit') + ': ' + item.itemName);
+                };
+                
+                const exportCostData = () => {
+                    ElementPlus.ElMessage.success(i18n.global.t('cost.export'));
+                };
+                
+                // Data analysis functions
+                const addDataPoint = () => {
+                    ElementPlus.ElMessage.info(i18n.global.t('analysis.addData'));
+                };
+                
+                const viewParameterDetails = (parameter) => {
+                    console.log('View parameter details:', parameter);
+                    ElementPlus.ElMessage.info(i18n.global.t('common.view') + ': ' + parameter.parameterName);
+                };
+                
+                const exportAnalysisData = () => {
+                    ElementPlus.ElMessage.success(i18n.global.t('analysis.export'));
+                };
+                
+                // Initialize data
+                onMounted(() => {
+                    loadChemicalData();
+                    loadSafetyData();
+                    loadExperimentData();
+                    loadRiskData();
+                });
+                
+                // Watch for module changes to load appropriate data
+                watch(activeModule, (newModule) => {
+                    if (newModule === 'cost') {
+                        loadCostData();
+                        loadCategoryCosts();
+                    } else if (newModule === 'analysis') {
+                        loadAnalysisData();
+                    }
+                });
+                
+                return {
+                    activeModule,
+                    chemicalCatalogs,
+                    chemicalInventory,
+                    safetyDatasheets,
+                    experimentDesigns,
+                    experimentRecords,
+                    riskAnalyzers,
+                    riskMonitors,
+                    experimentCosts,
+                    totalCost,
+                    categoryCosts,
+                    parameterStatistics,
+                    trendChartId,
+                    comparisonChartId,
+                    deviationChartId,
+                    handleSelect,
+                    changeLanguage,
+                    currentLanguageDisplay,
+                    getHazardType,
+                    getStatusType,
+                    getRiskType,
+                    getMonitorStatusType,
+                    getCategoryTagType,
+                    viewChemicalDetails,
+                    updateInventory,
+                    viewSDS,
+                    downloadSDS,
+                    viewExperimentDetails,
+                    viewExperimentRecord,
+                    viewRiskDetails,
+                    checkRiskStatus,
+                    addCostItem,
+                    editCostItem,
+                    exportCostData,
+                    addDataPoint,
+                    viewParameterDetails,
+                    exportAnalysisData
+                };
+            }
+        }).use(i18n).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>
